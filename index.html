@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activ Civil - Calculators</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        /* Using Inter font for better readability */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f3f4f6; /* Tailwind gray-100 */
+            color: #1f2937; /* Tailwind gray-800 */
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        .page-container {
+            display: none; /* All pages are hidden by default */
+        }
+        .page-container.active {
+            display: block; /* The active page is shown */
+        }
+        .container {
+            background-color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 0.75rem; /* Tailwind rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Tailwind shadow-lg */
+            width: 100%;
+            max-width: 700px;
+            margin-bottom: 2rem;
+        }
+        .timer-display, .count-display, .length-display {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+        }
+        .timer-display { background-color: #e0f2fe; color: #0c4a6e; }
+        .car-count-display { background-color: #dcfce7; color: #166534; }
+        .heavy-vehicle-count-display { background-color: #ffedd5; color: #9a3412; }
+        .total-length-display { background-color: #ede9fe; color: #5b21b6; }
+        
+        @keyframes flashRedAnimation {
+            0%, 100% { background-color: #ede9fe; color: #5b21b6; }
+            50% { background-color: #fee2e2; color: #b91c1c; }
+        }
+        .flashing-red { animation: flashRedAnimation 1s infinite; }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 0.25rem;
+            border: none;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { background-color: #9ca3af; cursor: not-allowed; opacity: 0.7; }
+
+        .btn-start { background-color: #2563eb; color: white; }
+        .btn-start:hover:not(:disabled) { background-color: #1d4ed8; }
+        .btn-add-car { background-color: #16a34a; color: white; }
+        .btn-add-car:hover:not(:disabled) { background-color: #15803d; }
+        .btn-add-heavy { background-color: #f97316; color: white; }
+        .btn-add-heavy:hover:not(:disabled) { background-color: #ea580c; }
+        .btn-oops { background-color: #f59e0b; color: white; }
+        .btn-oops:hover:not(:disabled) { background-color: #d97706; }
+        .btn-reset { background-color: #ef4444; color: white; }
+        .btn-reset:hover:not(:disabled) { background-color: #dc2626; }
+        .btn-secondary { background-color: #6b7280; color: white; }
+        .btn-secondary:hover:not(:disabled) { background-color: #4b5563; }
+        .btn-nav { background-color: #4b5563; color: white; }
+        .btn-nav:hover { background-color: #374151; }
+
+        .status-message { margin-top: 1rem; font-size: 1rem; color: #4b5563; min-height: 1.5rem; text-align: center; }
+        .alarm-active { color: #dc2626; font-weight: bold; }
+        
+        .button-group { display: flex; flex-direction: column; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+        .add-buttons-row { display: flex; justify-content: center; gap: 0.5rem; width: 100%; }
+        .displays-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+        
+        @media (min-width: 640px) {
+            .displays-grid { grid-template-columns: repeat(2, 1fr); }
+            .timer-wrapper, .total-length-wrapper { grid-column: span 2 / span 2; }
+        }
+         @media (min-width: 1024px) {
+            .displays-grid { grid-template-columns: repeat(3, 1fr); }
+            .timer-wrapper{ grid-column: span 3 / span 3; }
+            .car-count-wrapper, .heavy-vehicle-count-wrapper, .total-length-wrapper { grid-column: auto; }
+        }
+        
+        .history-table { width: 100%; margin-top: 1rem; border-collapse: collapse; }
+        .history-table th, .history-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        .history-table th { background-color: #f9fafb; font-weight: 600; }
+        .history-table td { font-size: 0.9rem; }
+        .history-controls { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+
+        .custom-select {
+            padding: 0.75rem 2.5rem 0.75rem 1rem; border: 1px solid #d1d5db; border-radius: 0.375rem; background-color: #fff;
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em;
+        }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .modal-content { background: white; padding: 2rem; border-radius: 0.5rem; text-align: center; max-width: 90%; width: 400px; }
+        .modal-buttons { margin-top: 1.5rem; display: flex; justify-content: center; gap: 1rem; }
+
+        /* Navigation Styles */
+        .app-header {
+            width: 100%; max-width: 700px; background-color: white; padding: 1rem 1.5rem;
+            border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;
+        }
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .nav-menu {
+            position: absolute; top: 5.5rem; right: 1rem; background: white; border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); overflow: hidden; display: none; z-index: 50;
+        }
+        .nav-menu.show { display: block; }
+        .nav-menu a {
+            display: block; padding: 0.75rem 1.5rem; color: #374151;
+            text-decoration: none; transition: background-color 0.2s;
+        }
+        .nav-menu a:hover { background-color: #f3f4f6; }
+
+        /* Styles for Calculators */
+        .form-group { margin-bottom: 1.5rem; }
+        .form-label { display: block; font-weight: 500; margin-bottom: 0.75rem; color: #374151; }
+        .button-choice-group { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+        .btn-choice {
+            background-color: #e5e7eb; color: #374151; border: 2px solid transparent; flex-grow: 1;
+        }
+        .btn-choice.selected {
+            background-color: #dbeafe; color: #1e40af; border-color: #2563eb; font-weight: 700;
+        }
+        .input-wrapper { display: flex; align-items: center; gap: 0.5rem; }
+        .form-input {
+            width: 100%; padding: 0.75rem; border: 1px solid #d1d5db;
+            border-radius: 0.375rem; font-size: 1rem;
+        }
+        .input-unit { font-weight: 500; color: #4b5563; }
+        .result-display {
+            font-size: 2rem; font-weight: 700; padding: 1rem; border-radius: 0.5rem;
+            text-align: center; background-color: #dcfce7; color: #166534;
+            transition: all 0.3s ease;
+        }
+        .result-display.orange {
+             background-color: #ffedd5; 
+             color: #9a3412;
+        }
+        .result-display.warning {
+            background-color: #fee2e2; color: #b91c1c; font-size: 1rem; font-weight: 600;
+            animation: flashWarning 1.5s infinite;
+        }
+        @keyframes flashWarning {
+            0%, 100% { background-color: #fee2e2; }
+            50% { background-color: #fecaca; }
+        }
+        .gps-display {
+            background-color: #eef2ff; color: #312e81;
+        }
+        .gps-display.approaching {
+            background-color: #fef3c7; color: #92400e;
+        }
+        .gps-display.target-reached {
+            background-color: #dcfce7; color: #166534;
+        }
+
+    </style>
+</head>
+<body>
+    <!-- App Header and Navigation -->
+    <header class="app-header">
+        <img src="https://storage.googleapis.com/gemini-prod-us-west1-409903530246/uploads/2024/07/21/71c4e68b-860a-41b3-b5f4-379f2d51e1af/ACTIV_LOGO.png" alt="Activ Civil Logo" style="height: 40px;">
+        <div class="header-controls">
+            <button id="muteButton" class="btn btn-nav p-2">
+                <svg id="soundOnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                <svg id="soundOffIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></svg>
+            </button>
+            <button id="menuButton" class="btn btn-nav">Menu</button>
+        </div>
+        <nav id="navMenu" class="nav-menu">
+            <a href="#" class="nav-link" data-page="queue-calculator">Queue Calculator</a>
+            <a href="#" class="nav-link" data-page="taper-length">Taper Length</a>
+            <a href="#" class="nav-link" data-page="cone-spacing">Cone Spacing</a>
+            <a href="#" class="nav-link" data-page="speed-reduction">Speed Reduction</a>
+            <a href="#" class="nav-link" data-page="sign-spacing">Sign Spacing</a>
+        </nav>
+    </header>
+
+    <!-- Page: Queue Length Calculator -->
+    <div id="page-queue-calculator" class="page-container active">
+        <div class="container">
+            <h2 class="text-xl font-semibold mb-6 text-gray-700 text-center">Queue Length Calculator (5 min)</h2>
+            <div class="displays-grid">
+                <div class="display-item-wrapper timer-wrapper">
+                    <label class="block text-sm font-medium text-gray-700 mb-1 text-center">Time Remaining:</label>
+                    <div id="timer" class="timer-display text-center">5:00</div>
+                </div>
+                <div class="display-item-wrapper car-count-wrapper">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Light Vehicles:</label>
+                    <div id="carCount" class="count-display car-count-display">0</div>
+                </div>
+                <div class="display-item-wrapper heavy-vehicle-count-wrapper">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Heavy Vehicles:</label>
+                    <div id="heavyVehicleCount" class="count-display heavy-vehicle-count-display">0</div>
+                </div>
+                <div class="display-item-wrapper total-length-wrapper">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Total Queue Length:</label>
+                    <div id="totalLength" class="length-display total-length-display">0 m</div>
+                </div>
+            </div>
+            <div class="button-group mb-4">
+                <button id="startButton" class="btn btn-start w-full max-w-xs">Start Count</button>
+                <div class="add-buttons-row">
+                    <button id="addCarButton" class="btn btn-add-car" disabled>Add Light Vehicle</button>
+                    <button id="addHeavyVehicleButton" class="btn btn-add-heavy" disabled>Add Heavy Vehicle</button>
+                </div>
+                <button id="oopsButton" class="btn btn-oops" disabled>Oops! (Undo Last)</button>
+                <button id="resetButton" class="btn btn-reset">Reset</button>
+            </div>
+            <div id="statusMessage" class="status-message">Press "Start" to begin.</div>
+        </div>
+        <div id="historyContainer" class="container hidden">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Count History</h3>
+            <div class="overflow-x-auto">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th><th>Duration</th><th>Light</th><th>Heavy</th><th>Length (m)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
+            <div class="history-controls">
+                <button id="exportCsvButton" class="btn btn-secondary">Export to CSV</button>
+                <button id="clearHistoryButton" class="btn btn-reset">Clear History</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page: Taper Length Calculator -->
+    <div id="page-taper-length" class="page-container">
+        <div class="container">
+            <h2 class="text-xl font-semibold mb-6 text-gray-700 text-center">Taper Length Calculator</h2>
+            <div class="form-group">
+                <label class="form-label">What type of Taper?</label>
+                <div id="taperTypeGroup" class="button-choice-group">
+                    <button class="btn btn-choice" data-taper="control">Traffic Control Taper</button>
+                    <button class="btn btn-choice" data-taper="shift">Lateral Shift Taper</button>
+                    <button class="btn btn-choice" data-taper="merge">Merge Taper</button>
+                </div>
+            </div>
+            <div id="taperSpeedGroup" class="form-group hidden">
+                <label for="taperSpeedInput" class="form-label">What is the speed?</label>
+                <div class="input-wrapper">
+                    <input type="number" id="taperSpeedInput" class="form-input" placeholder="e.g., 80" inputmode="numeric">
+                    <span class="input-unit">km/h</span>
+                </div>
+            </div>
+            <div id="taperResultGroup" class="form-group hidden">
+                <label class="form-label">Calculated Taper Length:</label>
+                <div id="taperResultDisplay" class="result-display"></div>
+            </div>
+            <div id="taperDistanceResultGroup" class="form-group hidden">
+                <label class="form-label">Distance Between Tapers:</label>
+                <div id="taperDistanceDisplay" class="result-display orange"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Page: Cone Spacing Calculator -->
+    <div id="page-cone-spacing" class="page-container">
+        <div class="container">
+            <h2 class="text-xl font-semibold mb-6 text-gray-700 text-center">Cone Spacing Calculator</h2>
+            <div class="form-group">
+                <label class="form-label">What type of work?</label>
+                <div id="coneTypeGroup" class="button-choice-group">
+                    <button class="btn btn-choice" data-cone-type="general">General Traffic Control</button>
+                    <button class="btn btn-choice" data-cone-type="linemarking">Line Marking</button>
+                </div>
+            </div>
+            <div id="coneSpeedGroup" class="form-group hidden">
+                <label for="coneSpeedInput" class="form-label">What is the speed?</label>
+                <div class="input-wrapper">
+                    <input type="number" id="coneSpeedInput" class="form-input" placeholder="e.g., 60" inputmode="numeric">
+                    <span class="input-unit">km/h</span>
+                </div>
+            </div>
+             <div id="coneResultGroup" class="form-group hidden">
+                <label class="form-label">Calculated Cone Spacing:</label>
+                <div id="coneResultDisplay" class="result-display"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page: Speed Reduction Calculator (Placeholder) -->
+    <div id="page-speed-reduction" class="page-container">
+        <div class="container">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 text-center">Speed Reduction Calculator</h2>
+            <p class="text-center text-gray-500">This calculator is coming soon!</p>
+        </div>
+    </div>
+
+    <!-- Page: Sign Spacing Calculator -->
+    <div id="page-sign-spacing" class="page-container">
+        <div class="container">
+            <h2 class="text-xl font-semibold mb-6 text-gray-700 text-center">Sign Spacing</h2>
+            <div id="sign-spacing-setup">
+                <div class="form-group">
+                    <label for="signSpacingSelect" class="form-label">Number of Signs:</label>
+                    <select id="signSpacingSelect" class="custom-select w-full">
+                        <!-- Options will be populated by JavaScript -->
+                    </select>
+                </div>
+                <div id="signInputsContainer"></div>
+                <div id="signSpacingStartButtonGroup" class="form-group hidden flex justify-center">
+                     <button id="startSignSpacingButton" class="btn btn-start w-full max-w-xs">Start</button>
+                </div>
+            </div>
+            <div id="sign-spacing-gps" class="hidden">
+                 <div id="gpsStatus" class="status-message mb-4"></div>
+                 <div id="gps-display-current" class="form-group">
+                    <label class="form-label">Current Progress:</label>
+                    <div id="gpsCurrentDistance" class="result-display gps-display">0 m</div>
+                </div>
+                 <div id="gps-display-target" class="form-group">
+                    <label class="form-label">Target Distance:</label>
+                    <div id="gpsTargetDistance" class="result-display orange">0 m</div>
+                </div>
+                <div class="button-group">
+                    <button id="nextSignButton" class="btn btn-secondary hidden">Next Sign</button>
+                    <button id="stopGpsButton" class="btn btn-reset">Stop</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal for Clearing History -->
+    <div id="confirmationModal" class="modal-overlay">
+        <div class="modal-content">
+            <p id="modalMessage" class="text-lg">Are you sure you want to clear all history? This cannot be undone.</p>
+            <div class="modal-buttons">
+                <button id="confirmClearButton" class="btn btn-reset">Yes, Clear</button>
+                <button id="cancelClearButton" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Global State ---
+        let isMuted = false;
+
+        // --- Global Elements ---
+        const muteButton = document.getElementById('muteButton');
+        const soundOnIcon = document.getElementById('soundOnIcon');
+        const soundOffIcon = document.getElementById('soundOffIcon');
+
+        // --- Navigation and Page Switching ---
+        const menuButton = document.getElementById('menuButton');
+        const navMenu = document.getElementById('navMenu');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const pages = document.querySelectorAll('.page-container');
+        
+        // --- Taper Calculator Elements ---
+        const taperTypeGroup = document.getElementById('taperTypeGroup');
+        const taperSpeedGroup = document.getElementById('taperSpeedGroup');
+        const taperSpeedInput = document.getElementById('taperSpeedInput');
+        const taperResultGroup = document.getElementById('taperResultGroup');
+        const taperResultDisplay = document.getElementById('taperResultDisplay');
+        const taperDistanceResultGroup = document.getElementById('taperDistanceResultGroup');
+        const taperDistanceDisplay = document.getElementById('taperDistanceDisplay');
+        let selectedTaperType = null;
+
+        // --- Cone Spacing Calculator Elements ---
+        const coneTypeGroup = document.getElementById('coneTypeGroup');
+        const coneSpeedGroup = document.getElementById('coneSpeedGroup');
+        const coneSpeedInput = document.getElementById('coneSpeedInput');
+        const coneResultGroup = document.getElementById('coneResultGroup');
+        const coneResultDisplay = document.getElementById('coneResultDisplay');
+        let selectedConeType = null;
+
+        // --- Sign Spacing Calculator Elements ---
+        const signSpacingSelect = document.getElementById('signSpacingSelect');
+        const signInputsContainer = document.getElementById('signInputsContainer');
+        const signSpacingStartButtonGroup = document.getElementById('signSpacingStartButtonGroup');
+        const startSignSpacingButton = document.getElementById('startSignSpacingButton');
+        const signSpacingSetup = document.getElementById('sign-spacing-setup');
+        const signSpacingGps = document.getElementById('sign-spacing-gps');
+        const gpsStatus = document.getElementById('gpsStatus');
+        const gpsCurrentDistance = document.getElementById('gpsCurrentDistance');
+        const gpsTargetDistance = document.getElementById('gpsTargetDistance');
+        const nextSignButton = document.getElementById('nextSignButton');
+        const stopGpsButton = document.getElementById('stopGpsButton');
+
+        let signDistances = [];
+        let currentSignIndex = 0;
+        let startPosition = null;
+        let watchId = null;
+        let targetReachedForCurrentSign = false;
+        let beepIntervalId = null;
+
+
+        function resetTaperCalculator() {
+            if (!taperTypeGroup) return;
+            taperTypeGroup.querySelectorAll('button').forEach(btn => btn.classList.remove('selected'));
+            selectedTaperType = null;
+            taperSpeedGroup.classList.add('hidden');
+            taperResultGroup.classList.add('hidden');
+            taperDistanceResultGroup.classList.add('hidden');
+            taperSpeedInput.value = '';
+        }
+        
+        function resetConeSpacingCalculator() {
+            if (!coneTypeGroup) return;
+            coneTypeGroup.querySelectorAll('button').forEach(btn => btn.classList.remove('selected'));
+            selectedConeType = null;
+            coneSpeedGroup.classList.add('hidden');
+            coneResultGroup.classList.add('hidden');
+            coneSpeedInput.value = '';
+        }
+
+        function resetSignSpacingCalculator() {
+            if (!signSpacingSelect) return;
+            signSpacingSelect.value = '0';
+            signInputsContainer.innerHTML = '';
+            signSpacingStartButtonGroup.classList.add('hidden');
+            signSpacingSetup.classList.remove('hidden');
+            signSpacingGps.classList.add('hidden');
+            stopGps();
+        }
+
+        function showPage(pageId) {
+            pages.forEach(page => page.classList.remove('active'));
+            const pageToShow = document.getElementById(pageId);
+            if(pageToShow) pageToShow.classList.add('active');
+            navMenu.classList.remove('show');
+
+            if (pageId !== 'page-taper-length') resetTaperCalculator();
+            if (pageId !== 'page-cone-spacing') resetConeSpacingCalculator();
+            if (pageId !== 'page-sign-spacing') resetSignSpacingCalculator();
+        }
+
+        menuButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navMenu.classList.toggle('show');
+        });
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                showPage(`page-${e.target.dataset.page}`);
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!navMenu.contains(e.target) && !menuButton.contains(e.target)) {
+                navMenu.classList.remove('show');
+            }
+        });
+
+        // --- Taper Length Calculator Logic ---
+        function calculateTaperLength() {
+            if (!selectedTaperType || !taperSpeedInput.value) {
+                taperResultGroup.classList.add('hidden');
+                taperDistanceResultGroup.classList.add('hidden');
+                return;
+            }
+            const speed = parseFloat(taperSpeedInput.value);
+            let taperLengthText = '', distanceText = '', isWarning = false;
+            if (speed <= 0) {
+                taperResultGroup.classList.add('hidden');
+                taperDistanceResultGroup.classList.add('hidden');
+                return;
+            }
+            taperResultGroup.classList.remove('hidden');
+            taperDistanceResultGroup.classList.remove('hidden');
+            if (selectedTaperType === 'control') {
+                if (speed > 65) { taperLengthText = "Traffic Control Must Be Conducted At Speeds Lower Than 60 km/h"; isWarning = true; } 
+                else if (speed > 55) { taperLengthText = "30 m"; } 
+                else { taperLengthText = "15 m"; }
+            } else if (selectedTaperType === 'shift') {
+                if (speed <= 45) taperLengthText = "5 m";
+                else if (speed <= 55) taperLengthText = "15 m";
+                else if (speed <= 65) taperLengthText = "30 m";
+                else if (speed <= 75) taperLengthText = "70 m";
+                else if (speed <= 85) taperLengthText = "80 m";
+                else if (speed <= 95) taperLengthText = "90 m";
+                else if (speed <= 105) taperLengthText = "100 m";
+                else taperLengthText = "110 m";
+            } else if (selectedTaperType === 'merge') {
+                if (speed <= 45) taperLengthText = "15 m";
+                else if (speed <= 55) taperLengthText = "30 m";
+                else if (speed <= 65) taperLengthText = "60 m";
+                else if (speed <= 75) taperLengthText = "115 m";
+                else if (speed <= 85) taperLengthText = "130 m";
+                else if (speed <= 95) taperLengthText = "145 m";
+                else if (speed <= 105) taperLengthText = "160 m";
+                else taperLengthText = "180 m";
+            }
+            if (speed <= 45) { distanceText = "10 m"; } 
+            else if (speed <= 55) { distanceText = "25 m"; } 
+            else if (speed <= 65) { distanceText = "70 m"; } 
+            else { distanceText = `${Math.round(1.5 * speed)} m`; }
+            taperResultDisplay.textContent = taperLengthText;
+            taperResultDisplay.classList.toggle('warning', isWarning);
+            taperDistanceDisplay.textContent = distanceText;
+        }
+        if (taperTypeGroup) {
+            taperTypeGroup.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-choice')) {
+                    taperTypeGroup.querySelectorAll('button').forEach(btn => btn.classList.remove('selected'));
+                    e.target.classList.add('selected');
+                    selectedTaperType = e.target.dataset.taper;
+                    taperSpeedGroup.classList.remove('hidden');
+                    calculateTaperLength();
+                }
+            });
+        }
+        if(taperSpeedInput) { taperSpeedInput.addEventListener('input', calculateTaperLength); }
+
+        // --- Cone Spacing Calculator Logic ---
+        function calculateConeSpacing() {
+            if (!selectedConeType || !coneSpeedInput.value) {
+                coneResultGroup.classList.add('hidden');
+                return;
+            }
+            const speed = parseFloat(coneSpeedInput.value);
+            let resultText = '';
+            if (speed <= 0) {
+                coneResultGroup.classList.add('hidden');
+                return;
+            }
+            coneResultGroup.classList.remove('hidden');
+
+            if (selectedConeType === 'general') {
+                if (speed <= 55) resultText = "4 m";
+                else if (speed <= 75) resultText = "12 m";
+                else resultText = "18 m";
+            } else if (selectedConeType === 'linemarking') {
+                if (speed < 56) resultText = "N/A for speeds under 56 km/h";
+                else if (speed <= 75) resultText = "24 m";
+                else resultText = "60 m";
+            }
+            coneResultDisplay.textContent = resultText;
+        }
+
+        if (coneTypeGroup) {
+            coneTypeGroup.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-choice')) {
+                    coneTypeGroup.querySelectorAll('button').forEach(btn => btn.classList.remove('selected'));
+                    e.target.classList.add('selected');
+                    selectedConeType = e.target.dataset.coneType;
+                    coneSpeedGroup.classList.remove('hidden');
+                    calculateConeSpacing();
+                }
+            });
+        }
+        if(coneSpeedInput) { coneSpeedInput.addEventListener('input', calculateConeSpacing); }
+
+        // --- Sign Spacing Calculator Logic ---
+        function populateSignSpacingSelect() {
+            if (!signSpacingSelect) return;
+            const defaultOption = document.createElement('option');
+            defaultOption.textContent = "Select number of signs...";
+            defaultOption.value = "0";
+            signSpacingSelect.appendChild(defaultOption);
+            for (let i = 1; i <= 10; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = i;
+                signSpacingSelect.appendChild(option);
+            }
+        }
+
+        function updateSignSpacingInputs() {
+            signInputsContainer.innerHTML = '';
+            const numSigns = parseInt(signSpacingSelect.value, 10);
+
+            if (isNaN(numSigns) || numSigns < 1) {
+                signSpacingStartButtonGroup.classList.add('hidden');
+                return;
+            }
+
+            for (let i = 1; i <= numSigns; i++) {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'form-group';
+                const label = document.createElement('label');
+                label.className = 'form-label';
+                label.textContent = `Distance for Sign ${i}:`;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'input-wrapper';
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'form-input sign-spacing-input';
+                input.placeholder = 'Enter distance in metres';
+                input.inputMode = 'numeric';
+                const unit = document.createElement('span');
+                unit.className = 'input-unit';
+                unit.textContent = 'm';
+                wrapper.appendChild(input);
+                wrapper.appendChild(unit);
+                inputGroup.appendChild(label);
+                inputGroup.appendChild(wrapper);
+                signInputsContainer.appendChild(inputGroup);
+            }
+            signSpacingStartButtonGroup.classList.remove('hidden');
+        }
+
+        if (signSpacingSelect) {
+            signSpacingSelect.addEventListener('change', updateSignSpacingInputs);
+        }
+
+        // GPS Functionality
+        function haversineDistance(coords1, coords2) {
+            function toRad(x) { return x * Math.PI / 180; }
+            const R = 6371e3; // metres
+            const dLat = toRad(coords2.latitude - coords1.latitude);
+            const dLon = toRad(coords2.longitude - coords1.longitude);
+            const lat1 = toRad(coords1.latitude);
+            const lat2 = toRad(coords2.latitude);
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            return R * c;
+        }
+
+        function startGps() {
+            if (!navigator.geolocation) {
+                gpsStatus.textContent = "GPS not supported on this device.";
+                return;
+            }
+            signDistances = Array.from(document.querySelectorAll('.sign-spacing-input')).map(input => parseFloat(input.value) || 0);
+            if (signDistances.some(d => d <= 0)) {
+                alert("Please enter a valid distance for all signs.");
+                return;
+            }
+
+            signSpacingSetup.classList.add('hidden');
+            signSpacingGps.classList.remove('hidden');
+            currentSignIndex = 0;
+            
+            navigator.geolocation.getCurrentPosition(position => {
+                startPosition = position.coords;
+                setupNextSign();
+                watchId = navigator.geolocation.watchPosition(updatePosition, handleGpsError, { enableHighAccuracy: true });
+            }, handleGpsError);
+        }
+        
+        function setupNextSign() {
+            if (currentSignIndex >= signDistances.length) {
+                gpsStatus.textContent = "All signs placed!";
+                gpsCurrentDistance.textContent = "Done!";
+                nextSignButton.classList.add('hidden');
+                stopGps();
+                return;
+            }
+            targetReachedForCurrentSign = false;
+            gpsStatus.textContent = `Placing Sign ${currentSignIndex + 1} of ${signDistances.length}`;
+            gpsTargetDistance.textContent = `${signDistances[currentSignIndex]} m`;
+            gpsCurrentDistance.textContent = '0 m';
+            gpsCurrentDistance.classList.remove('target-reached', 'approaching');
+            nextSignButton.classList.add('hidden');
+            if (beepIntervalId) clearInterval(beepIntervalId);
+            beepIntervalId = null;
+            navigator.geolocation.getCurrentPosition(position => {
+                startPosition = position.coords;
+            });
+        }
+
+        function updatePosition(position) {
+            if (!startPosition) return;
+            const distance = haversineDistance(startPosition, position.coords);
+            gpsCurrentDistance.textContent = `${distance.toFixed(1)} m`;
+
+            const targetDistance = signDistances[currentSignIndex];
+            const percentage = (distance / targetDistance) * 100;
+
+            // Visual Feedback
+            gpsCurrentDistance.classList.remove('target-reached', 'approaching');
+            if (percentage >= 97 && percentage <= 103) {
+                gpsCurrentDistance.classList.add('target-reached'); // Green
+            } else if ((percentage >= 75 && percentage < 97) || (percentage > 103 && percentage <= 125)) {
+                gpsCurrentDistance.classList.add('approaching'); // Amber
+            }
+
+            // Audio Feedback
+            if (beepIntervalId) clearInterval(beepIntervalId);
+            const MAX_BEEP_INTERVAL = 800;
+            const MIN_BEEP_INTERVAL = 150;
+
+            if (percentage >= 75 && percentage < 97) {
+                const progress = (percentage - 75) / (97 - 75);
+                const delay = MAX_BEEP_INTERVAL - progress * (MAX_BEEP_INTERVAL - MIN_BEEP_INTERVAL);
+                beepIntervalId = setInterval(playBeep, delay);
+            } else if (percentage >= 97 && percentage <= 103) {
+                beepIntervalId = setInterval(playBeep, 200);
+            } else if (percentage > 103 && percentage <= 125) {
+                const progress = (percentage - 103) / (125 - 103);
+                const delay = MIN_BEEP_INTERVAL + progress * (MAX_BEEP_INTERVAL - MIN_BEEP_INTERVAL);
+                beepIntervalId = setInterval(playBeep, delay);
+            }
+
+            // State Logic (Vibration, Next Button)
+            if (percentage >= 97 && percentage <= 103) {
+                if (!targetReachedForCurrentSign) {
+                    vibrateDevice([500]);
+                    targetReachedForCurrentSign = true;
+                    if (currentSignIndex < signDistances.length - 1) {
+                        nextSignButton.classList.remove('hidden');
+                    } else {
+                        gpsStatus.textContent = "Final sign placed!";
+                        stopGps();
+                    }
+                }
+            }
+        }
+        
+        function handleGpsError(error) {
+            gpsStatus.textContent = `GPS Error: ${error.message}`;
+        }
+        
+        function stopGps() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            if (beepIntervalId) {
+                clearInterval(beepIntervalId);
+                beepIntervalId = null;
+            }
+            startPosition = null;
+            signSpacingSetup.classList.remove('hidden');
+            signSpacingGps.classList.add('hidden');
+        }
+        
+        if (startSignSpacingButton) {
+            startSignSpacingButton.addEventListener('click', startGps);
+        }
+        if (nextSignButton) {
+            nextSignButton.addEventListener('click', () => {
+                currentSignIndex++;
+                setupNextSign();
+            });
+        }
+        if (stopGpsButton) {
+            stopGpsButton.addEventListener('click', stopGps);
+        }
+        
+        // --- Constants and State Variables (for Queue Calculator) ---
+        const CAR_LENGTH = 6;
+        const HEAVY_VEHICLE_LENGTH = 10;
+        const ALARM_DURATION_MS = 15 * 1000;
+        const ALARM_BEEP_INTERVAL_MS = 1000;
+        const VIBRATION_PATTERN = [500, 200, 500];
+        const HISTORY_STORAGE_KEY = 'queueCalculatorHistory';
+
+        // --- DOM Elements (for Queue Calculator) ---
+        const timerDisplay = document.getElementById('timer');
+        const carCountDisplay = document.getElementById('carCount');
+        const heavyVehicleCountDisplay = document.getElementById('heavyVehicleCount');
+        const totalLengthDisplay = document.getElementById('totalLength');
+        const startButton = document.getElementById('startButton');
+        const addCarButton = document.getElementById('addCarButton');
+        const addHeavyVehicleButton = document.getElementById('addHeavyVehicleButton');
+        const oopsButton = document.getElementById('oopsButton');
+        const resetButton = document.getElementById('resetButton');
+        const statusMessage = document.getElementById('statusMessage');
+        const historyContainer = document.getElementById('historyContainer');
+        const historyTableBody = document.getElementById('historyTableBody');
+        const exportCsvButton = document.getElementById('exportCsvButton');
+        const clearHistoryButton = document.getElementById('clearHistoryButton');
+        const confirmationModal = document.getElementById('confirmationModal');
+        const confirmClearButton = document.getElementById('confirmClearButton');
+        const cancelClearButton = document.getElementById('cancelClearButton');
+
+        // --- State (for Queue Calculator) ---
+        let timerInterval, countDurationSeconds=300, secondsRemaining=countDurationSeconds, carCount=0, heavyVehicleCount=0, isTimerRunning=false, alarmIntervalId=null, alarmStopperTimeoutId=null, inputHistory=[], audioCtx=null;
+
+        // --- Core Functions (for Queue Calculator & Global Audio) ---
+        function initAudioContext() { 
+            if (isMuted) return;
+            if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { console.error("Web Audio API not supported.", e); } 
+        }
+        function playBeep() { 
+            if (isMuted || !audioCtx) return; 
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = 'sine'; o.frequency.setValueAtTime(880, audioCtx.currentTime); g.gain.setValueAtTime(0.1, audioCtx.currentTime); o.start(); o.stop(audioCtx.currentTime + 0.15); 
+        }
+        function vibrateDevice(p) { if ('vibrate' in navigator) try { navigator.vibrate(p); } catch (e) { console.warn("Vibration failed.", e); } }
+        function startAlarmSequence() { initAudioContext(); statusMessage.classList.add('alarm-active'); statusMessage.textContent = "ALARM! Time's up!"; totalLengthDisplay.classList.add('flashing-red'); stopAlarmSequence(); let c=0; const m=ALARM_DURATION_MS/ALARM_BEEP_INTERVAL_MS; alarmIntervalId=setInterval(()=>{if(c<m){playBeep();vibrateDevice(VIBRATION_PATTERN);c++;}else{stopAlarmSequence();}},ALARM_BEEP_INTERVAL_MS); alarmStopperTimeoutId=setTimeout(()=>stopAlarmSequence(false),ALARM_DURATION_MS); }
+        function stopAlarmSequence(r=true) { if(alarmIntervalId)clearInterval(alarmIntervalId); if(alarmStopperTimeoutId)clearTimeout(alarmStopperTimeoutId); alarmIntervalId=null;alarmStopperTimeoutId=null;vibrateDevice(0);totalLengthDisplay.classList.remove('flashing-red');if(r)statusMessage.classList.remove('alarm-active'); }
+        function formatTime(s) { return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
+        const calculateTotalLength = () => (carCount * CAR_LENGTH) + (heavyVehicleCount * HEAVY_VEHICLE_LENGTH);
+        function updateDisplays() { timerDisplay.textContent=formatTime(secondsRemaining); carCountDisplay.textContent=carCount; heavyVehicleCountDisplay.textContent=heavyVehicleCount; totalLengthDisplay.textContent=`${calculateTotalLength()} m`; }
+        function updateOopsButtonState() { oopsButton.disabled = !(isTimerRunning && inputHistory.length > 0); }
+        function startTimer() { initAudioContext(); stopAlarmSequence(); if(isTimerRunning)return; isTimerRunning=true; secondsRemaining=countDurationSeconds; carCount=0; heavyVehicleCount=0; inputHistory=[]; updateUIForRunningState(true); statusMessage.textContent="Counting in progress..."; timerInterval=setInterval(()=>{secondsRemaining--;updateDisplays();if(secondsRemaining<=0)finishCount();},1000); }
+        function finishCount() { clearInterval(timerInterval);isTimerRunning=false; saveCountToHistory();renderHistory(); updateUIForRunningState(false);startAlarmSequence(); setTimeout(()=>{if(!isTimerRunning&&!alarmIntervalId){statusMessage.classList.remove('alarm-active');statusMessage.textContent=`Count finished! Total Length: ${calculateTotalLength()}m.`;}},ALARM_DURATION_MS+100); }
+        function addVehicle(t) { if(!isTimerRunning)return; if(t==='light'){carCount++;inputHistory.push("light");}else if(t==='heavy'){heavyVehicleCount++;inputHistory.push("heavy");} updateDisplays();updateOopsButtonState(); }
+        function undoLastInput() { if(!isTimerRunning||inputHistory.length===0)return; const l=inputHistory.pop(); if(l==="light"&&carCount>0)carCount--; else if(l==="heavy"&&heavyVehicleCount>0)heavyVehicleCount--; updateDisplays();updateOopsButtonState(); }
+        function resetCounter() { stopAlarmSequence();clearInterval(timerInterval);isTimerRunning=false; secondsRemaining=countDurationSeconds;carCount=0;heavyVehicleCount=0;inputHistory=[]; updateDisplays();updateUIForRunningState(false); statusMessage.textContent='Counter reset. Press "Start" to begin.'; }
+        function updateUIForRunningState(r) { isTimerRunning=r; startButton.disabled=r; addCarButton.disabled=!r; addHeavyVehicleButton.disabled=!r; updateOopsButtonState(); }
+        function getHistory() { return JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) || '[]'); }
+        function saveCountToHistory() { const h=getHistory(); h.unshift({timestamp:new Date().toISOString(),duration:countDurationSeconds,light:carCount,heavy:heavyVehicleCount,length:calculateTotalLength()}); localStorage.setItem(HISTORY_STORAGE_KEY,JSON.stringify(h)); }
+        function renderHistory() { const h=getHistory(); historyTableBody.innerHTML=''; historyContainer.classList.toggle('hidden',h.length===0); h.forEach(r=>{const row=historyTableBody.insertRow(); row.innerHTML=`<td>${new Date(r.timestamp).toLocaleString('en-AU',{dateStyle:'short',timeStyle:'short',hour12:false})}</td><td>${formatTime(r.duration)}</td><td>${r.light}</td><td>${r.heavy}</td><td>${r.length}</td>`;}); }
+        function clearHistory() { localStorage.removeItem(HISTORY_STORAGE_KEY); renderHistory(); }
+        function exportHistoryToCsv() { const h=getHistory();if(h.length===0)return; let c="data:text/csv;charset=utf-8,Timestamp,Duration (s),Light Vehicles,Heavy Vehicles,Total Length (m)\r\n"; h.forEach(r=>{c+=[new Date(r.timestamp).toISOString(),r.duration,r.light,r.heavy,r.length].join(",")+"\r\n";}); const l=document.createElement("a"); l.href=encodeURI(c); l.download=`queue_history_${new Date().toISOString().split('T')[0]}.csv`; l.click(); }
+        function showConfirmationModal() { confirmationModal.classList.add('visible'); }
+        function hideConfirmationModal() { confirmationModal.classList.remove('visible'); }
+
+        // --- Event Listeners ---
+        if (muteButton) {
+            muteButton.addEventListener('click', () => {
+                isMuted = !isMuted;
+                soundOnIcon.classList.toggle('hidden', isMuted);
+                soundOffIcon.classList.toggle('hidden', !isMuted);
+                if (!isMuted) {
+                    initAudioContext(); // Initialize audio context if unmuting for the first time
+                }
+            });
+        }
+        startButton.addEventListener('click', startTimer);
+        addCarButton.addEventListener('click', () => addVehicle('light'));
+        addHeavyVehicleButton.addEventListener('click', () => addVehicle('heavy'));
+        oopsButton.addEventListener('click', undoLastInput);
+        resetButton.addEventListener('click', resetCounter);
+        exportCsvButton.addEventListener('click', exportHistoryToCsv);
+        clearHistoryButton.addEventListener('click', showConfirmationModal);
+        confirmClearButton.addEventListener('click', () => { clearHistory(); hideConfirmationModal(); });
+        cancelClearButton.addEventListener('click', hideConfirmationModal);
+
+        // --- Initial App Load ---
+        populateSignSpacingSelect();
+        updateDisplays();
+        renderHistory();
+        showPage('page-queue-calculator');
+    });
+    </script>
+</body>
+</html>
