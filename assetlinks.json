@@ -1,8 +1,10 @@
 [{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "app.netlify.willowy_conkies_38d6e4.twa",
-        "sha256_cert_fingerprints": ["89:F8:69:2A:C5:B7:C0:B1:C3:CB:34:A8:A4:E6:03:95:AD:D5:1B:EC:DA:04:70:53:70:90:71:1F:88:1B:F5:16"]
-      }
-    }]
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.netlify.yourtrafficmate.twa",
+    "sha256_cert_fingerprints": [
+      "89:F8:69:2A:C5:B7:C0:B1:C3:CB:34:A8:A4:E6:03:95:AD:D5:1B:EC:DA:04:70:53:70:90:71:1F:88:1B:F5:16"
+    ]
+  }
+}]
