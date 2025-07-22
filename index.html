@@ -8,7 +8,14 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png">
-
+<script>
+    // Register the service worker for offline capabilities
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+            .then(() => console.log('Service Worker registered'))
+            .catch(error => console.error('Service Worker registration failed:', error));
+    }
+</script>
     <style>
         /* Using Inter font for better readability */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -101,23 +108,14 @@
             .car-count-wrapper, .heavy-vehicle-count-wrapper, .total-length-wrapper { grid-column: auto; }
         }
         
-        .history-table { width: 100%; margin-top: 1rem; border-collapse: collapse; }
-        .history-table th, .history-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
-        .history-table th { background-color: #f9fafb; font-weight: 600; }
-        .history-table td { font-size: 0.9rem; }
-        .history-controls { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
-
         .custom-select {
-            padding: 0.75rem 2.5rem 0.75rem 1rem; border: 1px solid #d1d5db; border-radius: 0.375rem; background-color: #fff;
+            padding: 0.75rem 2.5rem 0.75rem 1rem;
+            border: 1px solid #d1d5db; border-radius: 0.375rem; background-color: #fff;
             -webkit-appearance: none; -moz-appearance: none; appearance: none;
             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em;
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat; background-size: 1.5em 1.5em;
         }
-
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; }
-        .modal-overlay.visible { opacity: 1; visibility: visible; }
-        .modal-content { background: white; padding: 2rem; border-radius: 0.5rem; text-align: center; max-width: 90%; width: 400px; }
-        .modal-buttons { margin-top: 1.5rem; display: flex; justify-content: center; gap: 1rem; }
 
         /* Navigation Styles */
         .app-header {
@@ -145,6 +143,7 @@
         .form-group { margin-bottom: 1.5rem; }
         .form-label { display: block; font-weight: 500; margin-bottom: 0.75rem; color: #374151; }
         .button-choice-group { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+        .button-choice-group.flex-col { flex-direction: column; align-items: stretch; }
         .btn-choice {
             background-color: #e5e7eb; color: #374151; border: 2px solid transparent; flex-grow: 1;
         }
@@ -158,13 +157,20 @@
         }
         .input-unit { font-weight: 500; color: #4b5563; }
         .result-display {
-            font-size: 2rem; font-weight: 700; padding: 1rem; border-radius: 0.5rem;
+            font-size: 1.5rem; /* Adjusted for longer text */
+            font-weight: 700; padding: 1rem; border-radius: 0.5rem;
             text-align: center; background-color: #dcfce7; color: #166534;
             transition: all 0.3s ease;
+            line-height: 1.4; /* Improve readability */
+        }
+        .result-display small {
+            font-size: 0.8rem;
+            font-weight: 400;
+            display: block;
+            margin-top: 0.5rem;
         }
         .result-display.orange {
-             background-color: #ffedd5; 
-             color: #9a3412;
+             background-color: #ffedd5; color: #9a3412;
         }
         .result-display.warning {
             background-color: #fee2e2; color: #b91c1c; font-size: 1rem; font-weight: 600;
@@ -187,9 +193,14 @@
     </style>
 </head>
 <body>
-    <!-- App Header and Navigation -->
     <header class="app-header">
-        <img src="./ACTIV LOGO.png" alt="Your Traffic Mate Logo" style="height: 40px;">
+        <div class="flex items-center gap-3">
+            <img src="./ACTIV LOGO.png" alt="Your Traffic Mate Logo" style="height: 40px;">
+            <div>
+                <p class="text-sm font-semibold text-gray-800">Activ Civil Construction Services</p>
+                <p class="text-xs text-gray-600">0439 735 635</p>
+            </div>
+        </div>
         <div class="header-controls">
             <button id="muteButton" class="btn btn-nav p-2">
                 <svg id="soundOnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
@@ -201,12 +212,12 @@
             <a href="#" class="nav-link" data-page="queue-calculator">Queue Calculator</a>
             <a href="#" class="nav-link" data-page="taper-length">Taper Length</a>
             <a href="#" class="nav-link" data-page="cone-spacing">Cone Spacing</a>
+            <a href="#" class="nav-link" data-page="lane-width">Lane Width</a>
             <a href="#" class="nav-link" data-page="speed-reduction">Speed Reduction</a>
             <a href="#" class="nav-link" data-page="sign-spacing">Sign Spacing</a>
         </nav>
     </header>
 
-    <!-- Page: Queue Length Calculator -->
     <div id="page-queue-calculator" class="page-container active">
         <div class="container">
             <h2 class="text-xl font-semibold mb-6 text-gray-700 text-center">Queue Length Calculator (5 min)</h2>
@@ -239,26 +250,8 @@
             </div>
             <div id="statusMessage" class="status-message">Press "Start" to begin.</div>
         </div>
-        <div id="historyContainer" class="container hidden">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Count History</h3>
-            <div class="overflow-x-auto">
-                <table class="history-table">
-                    <thead>
-                        <tr>
-                            <th>Date & Time</th><th>Duration</th><th>Light</th><th>Heavy</th><th>Length (m)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyTableBody"></tbody>
-                </table>
-            </div>
-            <div class="history-controls">
-                <button id="exportCsvButton" class="btn btn-secondary">Export to CSV</button>
-                <button id="clearHistoryButton" class="btn btn-reset">Clear History</button>
-            </div>
-        </div>
     </div>
 
-    <!-- Page: Taper Length Calculator -->
     <div id="page-taper-length" class="page-container">
         <div class="container">
             <h2 class="text-xl font-semibold mb-6 text-gray-700 text-center">Taper Length Calculator</h2>
@@ -288,7 +281,6 @@
         </div>
     </div>
     
-    <!-- Page: Cone Spacing Calculator -->
     <div id="page-cone-spacing" class="page-container">
         <div class="container">
             <h2 class="text-xl font-semibold mb-6 text-gray-700 text-center">Cone Spacing Calculator</h2>
@@ -313,15 +305,61 @@
         </div>
     </div>
 
-    <!-- Page: Speed Reduction Calculator (Placeholder) -->
-    <div id="page-speed-reduction" class="page-container">
+    <div id="page-lane-width" class="page-container">
         <div class="container">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 text-center">Speed Reduction Calculator</h2>
-            <p class="text-center text-gray-500">This calculator is coming soon!</p>
+            <h2 class="text-xl font-semibold mb-6 text-gray-700 text-center">Lane Width Calculator</h2>
+            <div class="form-group">
+                <label class="form-label">General Lane Widths</label>
+                <div class="button-choice-group">
+                    <button class="btn btn-choice" data-lane-width="general-60">≤60 km/h</button>
+                    <button class="btn btn-choice" data-lane-width="general-90">70, 80 or 90 km/h</button>
+                    <button class="btn btn-choice" data-lane-width="general-100">≥100 km/h</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Curves</label>
+                <div class="button-choice-group">
+                    <button class="btn btn-choice" data-lane-width="curve-250">Radius 100–250 m</button>
+                    <button class="btn btn-choice" data-lane-width="curve-100">Radius &lt;100 m</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Two-way Residential Street</label>
+                <div class="button-choice-group">
+                    <button class="btn btn-choice" data-lane-width="res-shuttle">Shuttle flow</button>
+                    <button class="btn btn-choice" data-lane-width="res-active">Shuttle flow with active control</button>
+                    <button class="btn btn-choice" data-lane-width="res-passive">Shuttle flow without active control</button>
+                </div>
+            </div>
+             <div id="laneWidthResultGroup" class="form-group hidden">
+                <label class="form-label">Recommended Lane Width:</label>
+                <div id="laneWidthResultDisplay" class="result-display"></div>
+            </div>
         </div>
     </div>
 
-    <!-- Page: Sign Spacing Calculator -->
+    <div id="page-speed-reduction" class="page-container">
+        <div class="container">
+            <h2 class="text-xl font-semibold mb-6 text-gray-700 text-center">Speed Reduction Calculator</h2>
+            <div class="form-group">
+                <label class="form-label">Select the Work Zone Condition:</label>
+                <div id="speedConditionGroup" class="button-choice-group flex-col">
+                     <button class="btn btn-choice text-left" data-condition="high-hazard">High hazard / Pedestrians cannot be separated</button>
+                     <button class="btn btn-choice text-left" data-condition="workers-close">Workers on foot within 1.2m of traffic (no barrier)</button>
+                     <button class="btn btn-choice text-left" data-condition="workers-mid">Workers on foot 1.2m-3m from traffic / Plant within 3m</button>
+                     <button class="btn btn-choice text-left" data-condition="other-60">Reduced visibility, alignment, or pavement issues</button>
+                     <button class="btn btn-choice text-left" data-condition="workers-far">Workers or plant 3m-6m from traffic</button>
+                     <button class="btn btn-choice text-left" data-condition="workers-farthest">Workers on foot >6m from traffic</button>
+                     <button class="btn btn-choice text-left" data-condition="buffer">Buffer for 40/60km/h zone (from ≥100km/h)</button>
+                </div>
+            </div>
+             <div id="speedResultGroup" class="form-group hidden">
+                <label class="form-label">Recommended Speed Limit & Zone Length:</label>
+                <div id="speedResultDisplay" class="result-display"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="page-sign-spacing" class="page-container">
         <div class="container">
             <h2 class="text-xl font-semibold mb-6 text-gray-700 text-center">Sign Spacing</h2>
@@ -329,39 +367,31 @@
                 <div class="form-group">
                     <label for="signSpacingSelect" class="form-label">Number of Signs:</label>
                     <select id="signSpacingSelect" class="custom-select w-full">
-                        <!-- Options will be populated by JavaScript -->
-                    </select>
+                        </select>
                 </div>
                 <div id="signInputsContainer"></div>
-                <div id="signSpacingStartButtonGroup" class="form-group hidden flex justify-center">
-                     <button id="startSignSpacingButton" class="btn btn-start w-full max-w-xs">Start</button>
+                <div id="signSpacingStatus" class="status-message text-red-500"></div>
+                <div class="form-group hidden" id="signSpacingStartButtonGroup">
+                    <p class="text-center text-gray-500 mb-4">Enter the distance for each sign from your single start point. Then press Start.</p>
+                    <div class="flex justify-center">
+                        <button id="startSignSpacingButton" class="btn btn-start w-full max-w-xs">Set Start Point & Begin</button>
+                    </div>
                 </div>
             </div>
             <div id="sign-spacing-gps" class="hidden">
-                 <div id="gpsStatus" class="status-message mb-4"></div>
-                 <div id="gps-display-current" class="form-group">
-                    <label class="form-label">Current Progress:</label>
+                <div id="gpsStatus" class="status-message mb-4"></div>
+                 <div class="form-group">
+                    <label class="form-label">Distance from Start Point:</label>
                     <div id="gpsCurrentDistance" class="result-display gps-display">0 m</div>
                 </div>
-                 <div id="gps-display-target" class="form-group">
-                    <label class="form-label">Target Distance:</label>
+                 <div class="form-group">
+                    <label class="form-label">Next Target:</label>
                     <div id="gpsTargetDistance" class="result-display orange">0 m</div>
                 </div>
                 <div class="button-group">
-                    <button id="nextSignButton" class="btn btn-secondary hidden">Next Sign</button>
+                    <button id="signPlacedButton" class="btn btn-secondary hidden">Confirm Placement</button>
                     <button id="stopGpsButton" class="btn btn-reset">Stop</button>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Confirmation Modal for Clearing History -->
-    <div id="confirmationModal" class="modal-overlay">
-        <div class="modal-content">
-            <p id="modalMessage" class="text-lg">Are you sure you want to clear all history? This cannot be undone.</p>
-            <div class="modal-buttons">
-                <button id="confirmClearButton" class="btn btn-reset">Yes, Clear</button>
-                <button id="cancelClearButton" class="btn btn-secondary">Cancel</button>
             </div>
         </div>
     </div>
@@ -399,6 +429,16 @@
         const coneResultGroup = document.getElementById('coneResultGroup');
         const coneResultDisplay = document.getElementById('coneResultDisplay');
         let selectedConeType = null;
+        
+        // --- Lane Width Calculator Elements ---
+        const laneWidthPage = document.getElementById('page-lane-width');
+        const laneWidthResultGroup = document.getElementById('laneWidthResultGroup');
+        const laneWidthResultDisplay = document.getElementById('laneWidthResultDisplay');
+
+        // --- Speed Reduction Calculator Elements ---
+        const speedReductionPage = document.getElementById('page-speed-reduction');
+        const speedResultGroup = document.getElementById('speedResultGroup');
+        const speedResultDisplay = document.getElementById('speedResultDisplay');
 
         // --- Sign Spacing Calculator Elements ---
         const signSpacingSelect = document.getElementById('signSpacingSelect');
@@ -408,9 +448,10 @@
         const signSpacingSetup = document.getElementById('sign-spacing-setup');
         const signSpacingGps = document.getElementById('sign-spacing-gps');
         const gpsStatus = document.getElementById('gpsStatus');
+        const signSpacingStatus = document.getElementById('signSpacingStatus');
         const gpsCurrentDistance = document.getElementById('gpsCurrentDistance');
         const gpsTargetDistance = document.getElementById('gpsTargetDistance');
-        const nextSignButton = document.getElementById('nextSignButton');
+        const signPlacedButton = document.getElementById('signPlacedButton');
         const stopGpsButton = document.getElementById('stopGpsButton');
 
         let signDistances = [];
@@ -440,6 +481,18 @@
             coneSpeedInput.value = '';
         }
 
+        function resetLaneWidthCalculator() {
+            if (!laneWidthPage) return;
+            laneWidthPage.querySelectorAll('.btn-choice').forEach(btn => btn.classList.remove('selected'));
+            laneWidthResultGroup.classList.add('hidden');
+        }
+
+        function resetSpeedReductionCalculator() {
+            if (!speedReductionPage) return;
+            speedReductionPage.querySelectorAll('.btn-choice').forEach(btn => btn.classList.remove('selected'));
+            speedResultGroup.classList.add('hidden');
+        }
+
         function resetSignSpacingCalculator() {
             if (!signSpacingSelect) return;
             signSpacingSelect.value = '0';
@@ -458,6 +511,8 @@
 
             if (pageId !== 'page-taper-length') resetTaperCalculator();
             if (pageId !== 'page-cone-spacing') resetConeSpacingCalculator();
+            if (pageId !== 'page-lane-width') resetLaneWidthCalculator();
+            if (pageId !== 'page-speed-reduction') resetSpeedReductionCalculator();
             if (pageId !== 'page-sign-spacing') resetSignSpacingCalculator();
         }
 
@@ -465,20 +520,17 @@
             e.stopPropagation();
             navMenu.classList.toggle('show');
         });
-
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 showPage(`page-${e.target.dataset.page}`);
             });
         });
-
         document.addEventListener('click', (e) => {
             if (!navMenu.contains(e.target) && !menuButton.contains(e.target)) {
                 navMenu.classList.remove('show');
             }
         });
-
         // --- Taper Length Calculator Logic ---
         function calculateTaperLength() {
             if (!selectedTaperType || !taperSpeedInput.value) {
@@ -552,7 +604,6 @@
                 return;
             }
             coneResultGroup.classList.remove('hidden');
-
             if (selectedConeType === 'general') {
                 if (speed <= 55) resultText = "4 m";
                 else if (speed <= 75) resultText = "12 m";
@@ -577,6 +628,100 @@
             });
         }
         if(coneSpeedInput) { coneSpeedInput.addEventListener('input', calculateConeSpacing); }
+        
+        // --- Lane Width Calculator Logic ---
+        function calculateLaneWidth(criteria) {
+            let resultText = '';
+            switch(criteria) {
+                case 'general-60': resultText = 'Minimum 3.0m*'; break;
+                case 'general-90': resultText = 'Minimum 3.0m*'; break;
+                case 'general-100': resultText = 'Minimum 3.2m*'; break;
+                case 'curve-250': resultText = 'Minimum 3.4m*'; break;
+                case 'curve-100': resultText = 'Add curve widening of 0.5m per lane.<br><small>Consider swept path of long vehicles.</small>'; break;
+                case 'res-shuttle': resultText = 'Minimum of 5.5m (sum both ways)'; break;
+                case 'res-active': resultText = 'Minimum 3.0m*'; break;
+                case 'res-passive': resultText = 'Minimum 3.0m* and Maximum 3.5m'; break;
+                default: resultText = '';
+            }
+            if (resultText) {
+                laneWidthResultDisplay.innerHTML = resultText;
+                laneWidthResultGroup.classList.remove('hidden');
+            } else {
+                laneWidthResultGroup.classList.add('hidden');
+            }
+        }
+
+        if (laneWidthPage) {
+            const allLaneWidthGroups = laneWidthPage.querySelectorAll('.button-choice-group');
+            allLaneWidthGroups.forEach(group => {
+                group.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('btn-choice')) {
+                        allLaneWidthGroups.forEach(otherGroup => {
+                            if (otherGroup !== group) {
+                                otherGroup.querySelectorAll('.btn-choice').forEach(btn => btn.classList.remove('selected'));
+                            }
+                        });
+                        group.querySelectorAll('.btn-choice').forEach(btn => {
+                            if (btn !== e.target) btn.classList.remove('selected');
+                        });
+                        e.target.classList.add('selected');
+                        const criteria = e.target.dataset.laneWidth;
+                        calculateLaneWidth(criteria);
+                    }
+                });
+            });
+        }
+
+        // --- Speed Reduction Calculator Logic ---
+        function calculateSpeedReduction(condition) {
+            let resultText = '';
+            let isOrange = true;
+            switch(condition) {
+                case 'high-hazard':
+                    resultText = '<strong>Speed Limit:</strong> &lt;40 km/h<br><small><strong>Zone Length:</strong> 100–200 m</small>';
+                    break;
+                case 'workers-close':
+                    resultText = '<strong>Speed Limit:</strong> 40 km/h<br><small><strong>Zone Length:</strong> 100m (min) – 500m (max)*<br>*Max 1000m subject to risk assessment.</small>';
+                    break;
+                case 'workers-mid':
+                case 'other-60':
+                    resultText = '<strong>Speed Limit:</strong> 60 km/h<br><small><strong>Zone Length:</strong> 150m (minimum)</small>';
+                    break;
+                case 'workers-far':
+                    resultText = '<strong>Speed Limit:</strong> 80 km/h<br><small><strong>Zone Length:</strong> 500m (minimum)</small>';
+                    break;
+                case 'workers-farthest':
+                    resultText = 'No Speed Reduction Required';
+                    isOrange = false;
+                    break;
+                case 'buffer':
+                    resultText = '<strong>Speed Limit:</strong> 80 km/h (Buffer)<br><small><strong>Zone Length:</strong> 300m (minimum)</small>';
+                    break;
+                default:
+                    resultText = '';
+            }
+             if (resultText) {
+                speedResultDisplay.innerHTML = resultText;
+                speedResultDisplay.classList.toggle('orange', isOrange);
+                speedResultDisplay.classList.toggle('result-display', !isOrange); // Use default green if not orange
+                speedResultGroup.classList.remove('hidden');
+            } else {
+                speedResultGroup.classList.add('hidden');
+            }
+        }
+
+        if (speedReductionPage) {
+            const speedConditionGroup = document.getElementById('speedConditionGroup');
+            speedConditionGroup.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-choice')) {
+                    speedConditionGroup.querySelectorAll('.btn-choice').forEach(btn => btn.classList.remove('selected'));
+                    e.target.classList.add('selected');
+                    const condition = e.target.dataset.condition;
+                    calculateSpeedReduction(condition);
+                }
+            });
+        }
+
 
         // --- Sign Spacing Calculator Logic ---
         function populateSignSpacingSelect() {
@@ -596,7 +741,6 @@
         function updateSignSpacingInputs() {
             signInputsContainer.innerHTML = '';
             const numSigns = parseInt(signSpacingSelect.value, 10);
-
             if (isNaN(numSigns) || numSigns < 1) {
                 signSpacingStartButtonGroup.classList.add('hidden');
                 return;
@@ -607,7 +751,7 @@
                 inputGroup.className = 'form-group';
                 const label = document.createElement('label');
                 label.className = 'form-label';
-                label.textContent = `Distance for Sign ${i}:`;
+                label.textContent = `Distance for Sign ${i} from start:`;
                 const wrapper = document.createElement('div');
                 wrapper.className = 'input-wrapper';
                 const input = document.createElement('input');
@@ -639,38 +783,42 @@
             const dLon = toRad(coords2.longitude - coords1.longitude);
             const lat1 = toRad(coords1.latitude);
             const lat2 = toRad(coords2.latitude);
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
             return R * c;
         }
 
         function startGps() {
             if (!navigator.geolocation) {
-                gpsStatus.textContent = "GPS not supported on this device.";
+                signSpacingStatus.textContent = "GPS not supported. Please use a secure (HTTPS) connection and a compatible browser.";
                 return;
             }
             signDistances = Array.from(document.querySelectorAll('.sign-spacing-input')).map(input => parseFloat(input.value) || 0);
             if (signDistances.some(d => d <= 0)) {
-                alert("Please enter a valid distance for all signs.");
+                signSpacingStatus.textContent = "Please enter a valid, positive distance for all signs.";
                 return;
             }
+            // Sort distances to ensure they are measured in order
+            signDistances.sort((a, b) => a - b);
 
-            signSpacingSetup.classList.add('hidden');
-            signSpacingGps.classList.remove('hidden');
-            currentSignIndex = 0;
+            signSpacingStatus.textContent = "";
+            gpsStatus.textContent = "Requesting GPS permission to set start point...";
             
             navigator.geolocation.getCurrentPosition(position => {
-                startPosition = position.coords;
-                setupNextSign();
-                watchId = navigator.geolocation.watchPosition(updatePosition, handleGpsError, { enableHighAccuracy: true });
+                signSpacingSetup.classList.add('hidden');
+                signSpacingGps.classList.remove('hidden');
+                currentSignIndex = 0;
+                startPosition = position.coords; // This is the single start point
+                setupGpsUIForSign();
+                watchId = navigator.geolocation.watchPosition(updatePosition, handleGpsError, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
             }, handleGpsError);
         }
         
-        function setupNextSign() {
+        function setupGpsUIForSign() {
             if (currentSignIndex >= signDistances.length) {
                 gpsStatus.textContent = "All signs placed!";
                 gpsCurrentDistance.textContent = "Done!";
-                nextSignButton.classList.add('hidden');
+                signPlacedButton.classList.add('hidden');
                 stopGps();
                 return;
             }
@@ -679,12 +827,9 @@
             gpsTargetDistance.textContent = `${signDistances[currentSignIndex]} m`;
             gpsCurrentDistance.textContent = '0 m';
             gpsCurrentDistance.classList.remove('target-reached', 'approaching');
-            nextSignButton.classList.add('hidden');
+            signPlacedButton.classList.add('hidden');
             if (beepIntervalId) clearInterval(beepIntervalId);
             beepIntervalId = null;
-            navigator.geolocation.getCurrentPosition(position => {
-                startPosition = position.coords;
-            });
         }
 
         function updatePosition(position) {
@@ -699,44 +844,44 @@
             gpsCurrentDistance.classList.remove('target-reached', 'approaching');
             if (percentage >= 97 && percentage <= 103) {
                 gpsCurrentDistance.classList.add('target-reached'); // Green
-            } else if ((percentage >= 75 && percentage < 97) || (percentage > 103 && percentage <= 125)) {
+            } else if (percentage >= 90 && percentage < 97) {
                 gpsCurrentDistance.classList.add('approaching'); // Amber
             }
 
-            // Audio Feedback
-            if (beepIntervalId) clearInterval(beepIntervalId);
-            const MAX_BEEP_INTERVAL = 800;
-            const MIN_BEEP_INTERVAL = 150;
-
-            if (percentage >= 75 && percentage < 97) {
-                const progress = (percentage - 75) / (97 - 75);
-                const delay = MAX_BEEP_INTERVAL - progress * (MAX_BEEP_INTERVAL - MIN_BEEP_INTERVAL);
-                beepIntervalId = setInterval(playBeep, delay);
-            } else if (percentage >= 97 && percentage <= 103) {
-                beepIntervalId = setInterval(playBeep, 200);
-            } else if (percentage > 103 && percentage <= 125) {
-                const progress = (percentage - 103) / (125 - 103);
-                const delay = MIN_BEEP_INTERVAL + progress * (MAX_BEEP_INTERVAL - MIN_BEEP_INTERVAL);
-                beepIntervalId = setInterval(playBeep, delay);
-            }
-
-            // State Logic (Vibration, Next Button)
+            // Audio and Vibration Feedback
             if (percentage >= 97 && percentage <= 103) {
                 if (!targetReachedForCurrentSign) {
                     vibrateDevice([500]);
+                    playBeep();
                     targetReachedForCurrentSign = true;
-                    if (currentSignIndex < signDistances.length - 1) {
-                        nextSignButton.classList.remove('hidden');
+                    signPlacedButton.classList.remove('hidden');
+                     if (currentSignIndex < signDistances.length - 1) {
+                        signPlacedButton.textContent = `Confirm Sign ${currentSignIndex + 1} & Find Next`;
                     } else {
-                        gpsStatus.textContent = "Final sign placed!";
-                        stopGps();
+                        signPlacedButton.textContent = 'Confirm Final Sign';
                     }
                 }
             }
         }
         
         function handleGpsError(error) {
-            gpsStatus.textContent = `GPS Error: ${error.message}`;
+            let message = '';
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    message = "GPS permission denied. Please enable location access in your browser settings.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    message = "Location information is unavailable.";
+                    break;
+                case error.TIMEOUT:
+                    message = "The request to get user location timed out.";
+                    break;
+                case error.UNKNOWN_ERROR:
+                    message = "An unknown error occurred.";
+                    break;
+            }
+            gpsStatus.textContent = message;
+            stopGps();
         }
         
         function stopGps() {
@@ -756,10 +901,10 @@
         if (startSignSpacingButton) {
             startSignSpacingButton.addEventListener('click', startGps);
         }
-        if (nextSignButton) {
-            nextSignButton.addEventListener('click', () => {
+        if (signPlacedButton) {
+            signPlacedButton.addEventListener('click', () => {
                 currentSignIndex++;
-                setupNextSign();
+                setupGpsUIForSign(); // Set up UI for the next sign
             });
         }
         if (stopGpsButton) {
@@ -772,7 +917,6 @@
         const ALARM_DURATION_MS = 15 * 1000;
         const ALARM_BEEP_INTERVAL_MS = 1000;
         const VIBRATION_PATTERN = [500, 200, 500];
-        const HISTORY_STORAGE_KEY = 'queueCalculatorHistory';
 
         // --- DOM Elements (for Queue Calculator) ---
         const timerDisplay = document.getElementById('timer');
@@ -785,25 +929,18 @@
         const oopsButton = document.getElementById('oopsButton');
         const resetButton = document.getElementById('resetButton');
         const statusMessage = document.getElementById('statusMessage');
-        const historyContainer = document.getElementById('historyContainer');
-        const historyTableBody = document.getElementById('historyTableBody');
-        const exportCsvButton = document.getElementById('exportCsvButton');
-        const clearHistoryButton = document.getElementById('clearHistoryButton');
-        const confirmationModal = document.getElementById('confirmationModal');
-        const confirmClearButton = document.getElementById('confirmClearButton');
-        const cancelClearButton = document.getElementById('cancelClearButton');
 
         // --- State (for Queue Calculator) ---
         let timerInterval, countDurationSeconds=300, secondsRemaining=countDurationSeconds, carCount=0, heavyVehicleCount=0, isTimerRunning=false, alarmIntervalId=null, alarmStopperTimeoutId=null, inputHistory=[], audioCtx=null;
-
+        
         // --- Core Functions (for Queue Calculator & Global Audio) ---
         function initAudioContext() { 
             if (isMuted) return;
             if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { console.error("Web Audio API not supported.", e); } 
         }
         function playBeep() { 
-            if (isMuted || !audioCtx) return; 
-            const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = 'sine'; o.frequency.setValueAtTime(880, audioCtx.currentTime); g.gain.setValueAtTime(0.1, audioCtx.currentTime); o.start(); o.stop(audioCtx.currentTime + 0.15); 
+            if (isMuted || !audioCtx) return;
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = 'sine'; o.frequency.setValueAtTime(880, audioCtx.currentTime); g.gain.setValueAtTime(0.1, audioCtx.currentTime); o.start(); o.stop(audioCtx.currentTime + 0.15);
         }
         function vibrateDevice(p) { if ('vibrate' in navigator) try { navigator.vibrate(p); } catch (e) { console.warn("Vibration failed.", e); } }
         function startAlarmSequence() { initAudioContext(); statusMessage.classList.add('alarm-active'); statusMessage.textContent = "ALARM! Time's up!"; totalLengthDisplay.classList.add('flashing-red'); stopAlarmSequence(); let c=0; const m=ALARM_DURATION_MS/ALARM_BEEP_INTERVAL_MS; alarmIntervalId=setInterval(()=>{if(c<m){playBeep();vibrateDevice(VIBRATION_PATTERN);c++;}else{stopAlarmSequence();}},ALARM_BEEP_INTERVAL_MS); alarmStopperTimeoutId=setTimeout(()=>stopAlarmSequence(false),ALARM_DURATION_MS); }
@@ -813,18 +950,11 @@
         function updateDisplays() { timerDisplay.textContent=formatTime(secondsRemaining); carCountDisplay.textContent=carCount; heavyVehicleCountDisplay.textContent=heavyVehicleCount; totalLengthDisplay.textContent=`${calculateTotalLength()} m`; }
         function updateOopsButtonState() { oopsButton.disabled = !(isTimerRunning && inputHistory.length > 0); }
         function startTimer() { initAudioContext(); stopAlarmSequence(); if(isTimerRunning)return; isTimerRunning=true; secondsRemaining=countDurationSeconds; carCount=0; heavyVehicleCount=0; inputHistory=[]; updateUIForRunningState(true); statusMessage.textContent="Counting in progress..."; timerInterval=setInterval(()=>{secondsRemaining--;updateDisplays();if(secondsRemaining<=0)finishCount();},1000); }
-        function finishCount() { clearInterval(timerInterval);isTimerRunning=false; saveCountToHistory();renderHistory(); updateUIForRunningState(false);startAlarmSequence(); setTimeout(()=>{if(!isTimerRunning&&!alarmIntervalId){statusMessage.classList.remove('alarm-active');statusMessage.textContent=`Count finished! Total Length: ${calculateTotalLength()}m.`;}},ALARM_DURATION_MS+100); }
+        function finishCount() { clearInterval(timerInterval);isTimerRunning=false; updateUIForRunningState(false);startAlarmSequence(); setTimeout(()=>{if(!isTimerRunning&&!alarmIntervalId){statusMessage.classList.remove('alarm-active');statusMessage.textContent=`Count finished! Total Length: ${calculateTotalLength()}m.`;}},ALARM_DURATION_MS+100); }
         function addVehicle(t) { if(!isTimerRunning)return; if(t==='light'){carCount++;inputHistory.push("light");}else if(t==='heavy'){heavyVehicleCount++;inputHistory.push("heavy");} updateDisplays();updateOopsButtonState(); }
         function undoLastInput() { if(!isTimerRunning||inputHistory.length===0)return; const l=inputHistory.pop(); if(l==="light"&&carCount>0)carCount--; else if(l==="heavy"&&heavyVehicleCount>0)heavyVehicleCount--; updateDisplays();updateOopsButtonState(); }
         function resetCounter() { stopAlarmSequence();clearInterval(timerInterval);isTimerRunning=false; secondsRemaining=countDurationSeconds;carCount=0;heavyVehicleCount=0;inputHistory=[]; updateDisplays();updateUIForRunningState(false); statusMessage.textContent='Counter reset. Press "Start" to begin.'; }
         function updateUIForRunningState(r) { isTimerRunning=r; startButton.disabled=r; addCarButton.disabled=!r; addHeavyVehicleButton.disabled=!r; updateOopsButtonState(); }
-        function getHistory() { return JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) || '[]'); }
-        function saveCountToHistory() { const h=getHistory(); h.unshift({timestamp:new Date().toISOString(),duration:countDurationSeconds,light:carCount,heavy:heavyVehicleCount,length:calculateTotalLength()}); localStorage.setItem(HISTORY_STORAGE_KEY,JSON.stringify(h)); }
-        function renderHistory() { const h=getHistory(); historyTableBody.innerHTML=''; historyContainer.classList.toggle('hidden',h.length===0); h.forEach(r=>{const row=historyTableBody.insertRow(); row.innerHTML=`<td>${new Date(r.timestamp).toLocaleString('en-AU',{dateStyle:'short',timeStyle:'short',hour12:false})}</td><td>${formatTime(r.duration)}</td><td>${r.light}</td><td>${r.heavy}</td><td>${r.length}</td>`;}); }
-        function clearHistory() { localStorage.removeItem(HISTORY_STORAGE_KEY); renderHistory(); }
-        function exportHistoryToCsv() { const h=getHistory();if(h.length===0)return; let c="data:text/csv;charset=utf-8,Timestamp,Duration (s),Light Vehicles,Heavy Vehicles,Total Length (m)\r\n"; h.forEach(r=>{c+=[new Date(r.timestamp).toISOString(),r.duration,r.light,r.heavy,r.length].join(",")+"\r\n";}); const l=document.createElement("a"); l.href=encodeURI(c); l.download=`queue_history_${new Date().toISOString().split('T')[0]}.csv`; l.click(); }
-        function showConfirmationModal() { confirmationModal.classList.add('visible'); }
-        function hideConfirmationModal() { confirmationModal.classList.remove('visible'); }
 
         // --- Event Listeners ---
         if (muteButton) {
@@ -842,15 +972,10 @@
         addHeavyVehicleButton.addEventListener('click', () => addVehicle('heavy'));
         oopsButton.addEventListener('click', undoLastInput);
         resetButton.addEventListener('click', resetCounter);
-        exportCsvButton.addEventListener('click', exportHistoryToCsv);
-        clearHistoryButton.addEventListener('click', showConfirmationModal);
-        confirmClearButton.addEventListener('click', () => { clearHistory(); hideConfirmationModal(); });
-        cancelClearButton.addEventListener('click', hideConfirmationModal);
-
+        
         // --- Initial App Load ---
         populateSignSpacingSelect();
         updateDisplays();
-        renderHistory();
         showPage('page-queue-calculator');
     });
     </script>
